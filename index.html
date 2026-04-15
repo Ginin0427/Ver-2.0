@@ -184,26 +184,47 @@
         }
 
         async function showAIAdvice() {
-            isAdviceShown = true;
-            bubble.style.display = 'block';
-            document.getElementById('b-desc').innerHTML = '<span class="loading">正在为你调配今晚的灵感</span>';
-            setTimeout(() => { bubble.classList.add('active'); }, 50);
+    isAdviceShown = true;
+    bubble.style.display = 'block';
+    
+    // 注意：根据你的截图，你的 ID 叫 'b-desc'
+    const descElement = document.getElementById('b-desc'); 
+    
+    // 1. 先显示一个优雅的加载状态
+    descElement.innerHTML = '正在为你调配今晚的灵感...';
+    setTimeout(() => { bubble.classList.add('active'); }, 50);
 
-            try {
-                // 部署到 Vercel 时，请确保有 api/recommend.js
-                const response = await fetch('/api/recommend', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ score: totalScore })
-                });
-                const data = await response.json();
-                const advice = data.choices[0].message.content;
-                typeWriter(advice, document.getElementById('b-desc'));
-            } catch (e) {
-                typeWriter("今晚的月色很美，适合去进贤路走走。虽然调酒师暂时不在，但那里的晚风从不爽约。", document.getElementById('b-desc'));
-            }
-            resetBtn.classList.add('visible');
+    try {
+        const response = await fetch('/api/recommend', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ score: totalScore }) 
+        });
+
+        if (!response.ok) throw new Error('Network response was not ok');
+
+        const data = await response.json();
+        
+        // 2. 核心修正：精准提取 AI 的回复内容
+        if (data.choices && data.choices[0] && data.choices[0].message) {
+            const advice = data.choices[0].message.content;
+            
+            // 3. 清空加载文字，开始播放打字机效果
+            descElement.innerHTML = ''; 
+            typeWriter(advice, descElement);
+        } else {
+            throw new Error('Unexpected data structure');
         }
+    } catch (e) {
+        console.error("AI 呼叫失败:", e);
+        // 4. 如果 AI 没响应，显示你的兜底文案
+        descElement.innerHTML = '';
+        typeWriter("今晚的月色很美，适合去进贤路走走。虽然调酒师暂时不在，但那里的晚风从不爽约。", descElement);
+    }
+    
+    // 显示重新开始按钮
+    resetBtn.classList.add('visible');
+}
 
         function typeWriter(text, element) {
             let i = 0; element.innerHTML = "";
